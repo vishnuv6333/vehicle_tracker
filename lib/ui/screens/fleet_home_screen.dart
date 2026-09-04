@@ -6,6 +6,7 @@ import '../../bloc/fleet_event.dart';
 import '../../models/vehicle_status.dart';
 import '../widgets/filter_chips.dart';
 import '../widgets/status_chip.dart';
+import 'vehicle_detail_screen.dart';
 
 class FleetHomeScreen extends StatefulWidget {
   const FleetHomeScreen({super.key});
@@ -102,7 +103,11 @@ class _VehicleListItem extends StatelessWidget {
         trailing: StatusChip(status: vehicle.status),
         isThreeLine: vehicle.activeAlerts > 0,
         onTap: () {
-          // TODO: Navigate to Vehicle Detail Screen
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => VehicleDetailScreen(vehicle: vehicle),
+            ),
+          );
         },
       ),
     );

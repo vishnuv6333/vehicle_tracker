@@ -4,12 +4,17 @@ import 'data/database_service.dart';
 import 'bloc/fleet_bloc.dart';
 import 'ui/screens/fleet_home_screen.dart';
 
+import 'data/mock_data_generator.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Initialize Database
   final dbService = DatabaseService();
   await dbService.init();
+  
+  // Seed initial data
+  await MockDataGenerator.seedMockData(dbService);
 
   runApp(MyApp(dbService: dbService));
 }

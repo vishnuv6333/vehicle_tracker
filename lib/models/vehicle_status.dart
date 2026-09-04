@@ -46,8 +46,11 @@ class VehicleStatus extends Equatable {
       model: map['model'],
       soc: map['soc'],
       range: map['range'],
-      lastPing:
-          map['last_ping'] != null ? DateTime.parse(map['last_ping']) : null,
+      lastPing: map['last_ping'] is DateTime
+          ? map['last_ping']
+          : (map['last_ping'] != null
+              ? DateTime.parse(map['last_ping'])
+              : null),
       status: mapStatus(map['status']),
       activeAlerts: map['active_alerts'] ?? 0,
     );
