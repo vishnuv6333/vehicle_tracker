@@ -1,0 +1,45 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'data/database_service.dart';
+import 'bloc/fleet_bloc.dart';
+import 'ui/screens/fleet_home_screen.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialize Database
+  final dbService = DatabaseService();
+  await dbService.init();
+
+  runApp(MyApp(dbService: dbService));
+}
+
+class MyApp extends StatelessWidget {
+  final DatabaseService dbService;
+
+  const MyApp({Key? key, required this.dbService}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider<FleetBloc>(
+          create: (context) => FleetBloc(dbService),
+        ),
+      ],
+      child: MaterialApp(
+        title: 'Fleet Console',
+        theme: ThemeData(
+          colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple, brightness: Brightness.light),
+          useMaterial3: true,
+        ),
+        darkTheme: ThemeData(
+          colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple, brightness: Brightness.dark),
+          useMaterial3: true,
+        ),
+        themeMode: ThemeMode.system,
+        home: const FleetHomeScreen(),
+      ),
+    );
+  }
+}
