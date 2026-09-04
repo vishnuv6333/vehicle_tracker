@@ -7,6 +7,9 @@ import '../../models/vehicle_status.dart';
 import '../widgets/filter_chips.dart';
 import '../widgets/status_chip.dart';
 import 'vehicle_detail_screen.dart';
+import 'geofences_screen.dart';
+import '../../data/scale_backfill.dart';
+import '../../data/database_service.dart';
 
 class FleetHomeScreen extends StatefulWidget {
   const FleetHomeScreen({super.key});
@@ -29,6 +32,37 @@ class _FleetHomeScreenState extends State<FleetHomeScreen> {
       appBar: AppBar(
         title: const Text('Fleet Console'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.bolt),
+            tooltip: 'Run Scale Backfill',
+            onPressed: () async {
+              showDialog(
+                context: context,
+                barrierDismissible: false,
+                builder: (_) => const AlertDialog(
+                  title: Text('Running Backfill...'),
+                  content: LinearProgressIndicator(),
+                ),
+              );
+              
+              // Import required locally or at top. We will import at top.
+              await ScaleBackfill.runBackfill(DatabaseService());
+              
+              if (context.mounted) {
+                Navigator.of(context).pop(); // Close dialog
+                context.read<FleetBloc>().add(LoadFleetData()); // Refresh
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Backfill complete! Check console for query times.')),
+                );
+              }
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.map),
+            onPressed: () {
+              Navigator.of(context).push(MaterialPageRoute(builder: (_) => const GeofencesScreen()));
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: () => context.read<FleetBloc>().add(LoadFleetData()),

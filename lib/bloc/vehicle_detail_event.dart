@@ -31,3 +31,11 @@ class UndoDismissAlert extends VehicleDetailEvent {
   @override
   List<Object?> get props => [alertId];
 }
+
+class RecalculateVehicleTrips extends VehicleDetailEvent {
+  final String vehicleId;
+  const RecalculateVehicleTrips(this.vehicleId);
+
+  @override
+  List<Object?> get props => [vehicleId];
+}

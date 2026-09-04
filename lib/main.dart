@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:vechicle_tracker/data/scale_backfill.dart';
+
 import 'data/database_service.dart';
 import 'bloc/fleet_bloc.dart';
 import 'ui/screens/fleet_home_screen.dart';
-
-import 'data/mock_data_generator.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -13,8 +13,13 @@ void main() async {
   final dbService = DatabaseService();
   await dbService.init();
 
-  // Seed initial data
-  await MockDataGenerator.seedMockData(dbService);
+  // Check if vehicles exist
+  final vehiclesRes = await dbService.connection.query("SELECT COUNT(*) FROM vehicles");
+  final count = (vehiclesRes.fetchAll().firstOrNull?.firstOrNull as int?) ?? 0;
+  
+  if (count == 0) {
+    await ScaleBackfill.runBackfill(dbService);
+  }
 
   runApp(MyApp(dbService: dbService));
 }

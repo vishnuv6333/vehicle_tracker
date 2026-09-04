@@ -17,6 +17,8 @@ class FleetBloc extends Bloc<FleetEvent, FleetState> {
     try {
       final connection = _dbService.connection;
       
+      final stopwatch = Stopwatch()..start();
+      
       // Query to get all vehicles
       final result = await connection.query('SELECT * FROM fleet_status_view');
       final vehicles = <VehicleStatus>[];
@@ -36,6 +38,9 @@ class FleetBloc extends Bloc<FleetEvent, FleetState> {
         GROUP BY status
       ''');
       
+      stopwatch.stop();
+      print('Fleet data query took: ${stopwatch.elapsedMilliseconds} ms');
+
       final counts = <FleetStatus, int>{FleetStatus.ALL: vehicles.length};
       final countRows = countsResult.fetchAll();
       for (var row in countRows) {

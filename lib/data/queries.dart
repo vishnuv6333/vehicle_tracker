@@ -33,6 +33,7 @@ class Queries {
       id VARCHAR PRIMARY KEY,
       vehicle_id VARCHAR NOT NULL,
       alert_type VARCHAR NOT NULL,
+      severity VARCHAR NOT NULL,
       status VARCHAR NOT NULL, -- 'active', 'dismissed', 'resolved'
       dismissal_reason VARCHAR,
       timestamp TIMESTAMP NOT NULL
@@ -53,26 +54,24 @@ class Queries {
 
   static const String createFleetStatusView = '''
     CREATE OR REPLACE VIEW fleet_status_view AS
-    WITH latest_telemetry AS (
+    WITH latest_signals AS (
       SELECT 
-        vehicle_id,
-        signal_name,
-        signal_value,
-        timestamp as event_time,
-        MAX(timestamp) OVER (PARTITION BY vehicle_id, signal_name) as max_time,
-        MAX(received_at) OVER (PARTITION BY vehicle_id) as last_ping
+        vehicle_id, 
+        signal_name, 
+        arg_max(signal_value, timestamp) as latest_val,
+        MAX(received_at) as max_ping
       FROM telemetry
+      GROUP BY vehicle_id, signal_name
     ),
     current_signals AS (
       SELECT 
         vehicle_id,
-        MAX(CASE WHEN signal_name = 'soc' THEN signal_value END) as soc,
-        MAX(CASE WHEN signal_name = 'range' THEN signal_value END) as range,
-        MAX(CASE WHEN signal_name = 'speed' THEN signal_value END) as speed,
-        MAX(CASE WHEN signal_name = 'ignition' THEN signal_value END) as ignition,
-        MAX(last_ping) as last_ping
-      FROM latest_telemetry
-      WHERE event_time = max_time
+        MAX(CASE WHEN signal_name = 'soc' THEN latest_val END) as soc,
+        MAX(CASE WHEN signal_name = 'range' THEN latest_val END) as range,
+        MAX(CASE WHEN signal_name = 'speed' THEN latest_val END) as speed,
+        MAX(CASE WHEN signal_name = 'ignition' THEN latest_val END) as ignition,
+        MAX(max_ping) as last_ping
+      FROM latest_signals
       GROUP BY vehicle_id
     )
     SELECT 
@@ -89,7 +88,6 @@ class Queries {
         WHEN cs.ignition = 0 THEN 'STOPPED'
         ELSE 'OFFLINE'
       END as status,
-      -- Alerts logic can be joined here or handled in Dart if complex
       (SELECT count(*) FROM alerts a WHERE a.vehicle_id = v.id AND a.status = 'active') as active_alerts
     FROM vehicles v
     LEFT JOIN current_signals cs ON v.id = cs.vehicle_id;

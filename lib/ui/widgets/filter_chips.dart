@@ -6,7 +6,7 @@ import '../../bloc/fleet_state.dart';
 import '../../bloc/fleet_event.dart';
 
 class FleetFilterChips extends StatelessWidget {
-  const FleetFilterChips({Key? key}) : super(key: key);
+  const FleetFilterChips({super.key});
 
   String _statusLabel(FleetStatus status) {
     switch (status) {

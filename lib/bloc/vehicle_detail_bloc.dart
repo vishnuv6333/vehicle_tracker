@@ -1,4 +1,5 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:vechicle_tracker/utils/trip_calculator.dart';
 import '../data/database_service.dart';
 import 'vehicle_detail_event.dart';
 import 'vehicle_detail_state.dart';
@@ -11,6 +12,7 @@ class VehicleDetailBloc extends Bloc<VehicleDetailEvent, VehicleDetailState> {
     on<LoadVehicleDetail>(_onLoadVehicleDetail);
     on<DismissAlert>(_onDismissAlert);
     on<UndoDismissAlert>(_onUndoDismissAlert);
+    on<RecalculateVehicleTrips>(_onRecalculateVehicleTrips);
   }
 
   Future<void> _onLoadVehicleDetail(
@@ -108,68 +110,115 @@ class VehicleDetailBloc extends Bloc<VehicleDetailEvent, VehicleDetailState> {
       final List<Map<String, dynamic>> socHistory = [];
       for (var row in historyResult.fetchAll()) {
         socHistory.add({
-          'time': row[0] is DateTime ? row[0] as DateTime : DateTime.parse(row[0] as String),
+          'time': row[0] is DateTime
+              ? row[0] as DateTime
+              : DateTime.parse(row[0] as String),
           'value': row[1] as double,
         });
       }
 
       // Check and update Alerts in DB based on current readings
-      final activeAlertsResult = await connection.query("SELECT id, alert_type, status, dismissal_reason FROM alerts WHERE vehicle_id = '${event.vehicleId}' AND status IN ('active', 'dismissed')");
+      final activeAlertsResult = await connection.query(
+          "SELECT id, alert_type, status, dismissal_reason FROM alerts WHERE vehicle_id = '${event.vehicleId}' AND status IN ('active', 'dismissed')");
       final dbAlerts = activeAlertsResult.fetchAll();
-      
+
       bool hasSocAlert = false;
       bool hasTempAlert = false;
       double? latestSoc;
-      double? latestTemp;
-      
-      for(var r in readingsList) {
+
+      for (var r in readingsList) {
         if (r.label == 'SOC' && r.value != null && r.verdict != Verdict.STALE) {
           latestSoc = r.value;
           if (r.value! < 20.0) hasSocAlert = true;
         }
-        if (r.label == 'BATTERY_TEMP' && r.value != null && r.verdict != Verdict.STALE) {
-          latestTemp = r.value;
+        if (r.label == 'BATTERY_TEMP' &&
+            r.value != null &&
+            r.verdict != Verdict.STALE) {
           if (r.value! > 45.0) hasTempAlert = true;
         }
       }
 
       // Sync SOC alert
-      final socAlertRow = dbAlerts.where((row) => (row[1] as String) == 'soc').firstOrNull;
+      final socAlertRow =
+          dbAlerts.where((row) => (row[1] as String) == 'soc').firstOrNull;
       if (hasSocAlert) {
-        final severity = latestSoc! < 10.0 ? 'Critical' : 'Warning'; // escalating
+        final severity =
+            latestSoc! < 10.0 ? 'Critical' : 'Warning'; // escalating
         if (socAlertRow == null) {
           final aid = '${event.vehicleId}_soc_${now.millisecondsSinceEpoch}';
-          await connection.query("INSERT INTO alerts (id, vehicle_id, alert_type, status, timestamp) VALUES ('$aid', '${event.vehicleId}', 'soc', 'active', '${now.toIso8601String()}')");
+          await connection.query(
+              "INSERT INTO alerts (id, vehicle_id, alert_type, severity, status, timestamp) VALUES ('$aid', '${event.vehicleId}', 'soc', '$severity', 'active', '${now.toIso8601String()}')");
         }
       } else {
         if (socAlertRow != null) {
-          await connection.query("UPDATE alerts SET status = 'resolved' WHERE id = '${socAlertRow[0] as String}'");
+          await connection.query(
+              "UPDATE alerts SET status = 'resolved' WHERE id = '${socAlertRow[0] as String}'");
         }
       }
 
       // Sync Temp alert
-      final tempAlertRow = dbAlerts.where((row) => (row[1] as String) == 'temp').firstOrNull;
+      final tempAlertRow =
+          dbAlerts.where((row) => (row[1] as String) == 'temp').firstOrNull;
       if (hasTempAlert) {
         if (tempAlertRow == null) {
           final aid = '${event.vehicleId}_temp_${now.millisecondsSinceEpoch}';
-          await connection.query("INSERT INTO alerts (id, vehicle_id, alert_type, status, timestamp) VALUES ('$aid', '${event.vehicleId}', 'temp', 'active', '${now.toIso8601String()}')");
+          await connection.query(
+              "INSERT INTO alerts (id, vehicle_id, alert_type, severity, status, timestamp) VALUES ('$aid', '${event.vehicleId}', 'temp', 'Critical', 'active', '${now.toIso8601String()}')");
         }
       } else {
         if (tempAlertRow != null) {
-          await connection.query("UPDATE alerts SET status = 'resolved' WHERE id = '${tempAlertRow[0] as String}'");
+          await connection.query(
+              "UPDATE alerts SET status = 'resolved' WHERE id = '${tempAlertRow[0] as String}'");
         }
       }
 
       // Refetch active/dismissed alerts for UI
-      final alertsQuery = await connection.query("SELECT id, alert_type, status, dismissal_reason FROM alerts WHERE vehicle_id = '${event.vehicleId}' AND status IN ('active', 'dismissed')");
+      final alertsQuery = await connection.query(
+          "SELECT id, alert_type, severity, status, dismissal_reason FROM alerts WHERE vehicle_id = '${event.vehicleId}' AND status IN ('active', 'dismissed')");
       final List<Map<String, dynamic>> activeAlerts = [];
       for (var row in alertsQuery.fetchAll()) {
         activeAlerts.add({
           'id': row[0] as String,
           'alert_type': row[1] as String,
-          'status': row[2] as String,
-          'dismissal_reason': row[3] as String?,
-          'severity': (row[1] as String) == 'soc' ? (latestSoc != null && latestSoc < 10.0 ? 'Critical' : 'Warning') : 'Critical',
+          'severity': row[2] as String,
+          'status': row[3] as String,
+          'dismissal_reason': row[4] as String?,
+        });
+      }
+
+      // Fetch trips
+      final tripsQuery = '''
+        SELECT 
+          t.id, 
+          t.start_time, 
+          t.end_time, 
+          t.status, 
+          o.name as origin_geofence_name, 
+          d.name as destination_geofence_name,
+          t.vehicle_id
+        FROM trips t
+        LEFT JOIN geofences o ON t.origin_geofence_id = o.id
+        LEFT JOIN geofences d ON t.destination_geofence_id = d.id
+        WHERE t.vehicle_id = '${event.vehicleId}'
+        ORDER BY t.start_time DESC
+      ''';
+      final tripsResult = await connection.query(tripsQuery);
+      final List<Map<String, dynamic>> trips = [];
+      for (var row in tripsResult.fetchAll()) {
+        trips.add({
+          'id': row[0] as String,
+          'start_time': row[1] is DateTime
+              ? row[1] as DateTime
+              : DateTime.parse(row[1] as String),
+          'end_time': row[2] == null
+              ? null
+              : (row[2] is DateTime
+                  ? row[2] as DateTime
+                  : DateTime.parse(row[2] as String)),
+          'status': row[3] as String,
+          'origin_geofence_name': row[4] as String?,
+          'destination_geofence_name': row[5] as String?,
+          'vehicle_id': row[6] as String,
         });
       }
 
@@ -178,23 +227,26 @@ class VehicleDetailBloc extends Bloc<VehicleDetailEvent, VehicleDetailState> {
         readings: readingsList,
         socHistory: socHistory,
         activeAlerts: activeAlerts,
+        trips: trips,
       ));
     } catch (e) {
       emit(state.copyWith(isLoading: false, error: e.toString()));
     }
   }
 
-  Future<void> _onDismissAlert(DismissAlert event, Emitter<VehicleDetailState> emit) async {
+  Future<void> _onDismissAlert(
+      DismissAlert event, Emitter<VehicleDetailState> emit) async {
     try {
-      await _dbService.connection.query("UPDATE alerts SET status = 'dismissed', dismissal_reason = '${event.reason}' WHERE id = '${event.alertId}'");
+      await _dbService.connection.query(
+          "UPDATE alerts SET status = 'dismissed', dismissal_reason = '${event.reason}' WHERE id = '${event.alertId}'");
       // Trigger a reload to refresh alerts
       if (state.readings.isNotEmpty) {
-        final vehicleId = state.activeAlerts.firstWhere((a) => a['id'] == event.alertId, orElse: () => {'vehicle_id': ''})['vehicle_id'] as String?;
         // Just refetch alerts manually
-        final alertsQuery = await _dbService.connection.query("SELECT id, alert_type, status, dismissal_reason, vehicle_id FROM alerts WHERE id = '${event.alertId}'");
+        final alertsQuery = await _dbService.connection.query(
+            "SELECT id, alert_type, status, dismissal_reason, vehicle_id FROM alerts WHERE id = '${event.alertId}'");
         final row = alertsQuery.fetchAll().firstOrNull;
-        if(row != null) {
-           add(LoadVehicleDetail(row[4] as String));
+        if (row != null) {
+          add(LoadVehicleDetail(row[4] as String));
         }
       }
     } catch (e) {
@@ -202,18 +254,33 @@ class VehicleDetailBloc extends Bloc<VehicleDetailEvent, VehicleDetailState> {
     }
   }
 
-  Future<void> _onUndoDismissAlert(UndoDismissAlert event, Emitter<VehicleDetailState> emit) async {
+  Future<void> _onUndoDismissAlert(
+      UndoDismissAlert event, Emitter<VehicleDetailState> emit) async {
     try {
-      await _dbService.connection.query("UPDATE alerts SET status = 'active', dismissal_reason = NULL WHERE id = '${event.alertId}'");
-       if (state.readings.isNotEmpty) {
-        final alertsQuery = await _dbService.connection.query("SELECT id, alert_type, status, dismissal_reason, vehicle_id FROM alerts WHERE id = '${event.alertId}'");
+      await _dbService.connection.query(
+          "UPDATE alerts SET status = 'active', dismissal_reason = NULL WHERE id = '${event.alertId}'");
+      if (state.readings.isNotEmpty) {
+        final alertsQuery = await _dbService.connection.query(
+            "SELECT id, alert_type, status, dismissal_reason, vehicle_id FROM alerts WHERE id = '${event.alertId}'");
         final row = alertsQuery.fetchAll().firstOrNull;
-        if(row != null) {
-           add(LoadVehicleDetail(row[4] as String));
+        if (row != null) {
+          add(LoadVehicleDetail(row[4] as String));
         }
       }
     } catch (e) {
       print(e);
+    }
+  }
+
+  Future<void> _onRecalculateVehicleTrips(
+      RecalculateVehicleTrips event, Emitter<VehicleDetailState> emit) async {
+    emit(state.copyWith(isLoading: true));
+    try {
+      await TripCalculator.processTelemetry(_dbService, event.vehicleId);
+      // Reload details to fetch the updated trips
+      add(LoadVehicleDetail(event.vehicleId));
+    } catch (e) {
+      emit(state.copyWith(isLoading: false, error: e.toString()));
     }
   }
 }

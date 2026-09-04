@@ -7,6 +7,7 @@ class VehicleDetailState extends Equatable {
   final List<SignalReading> readings;
   final List<Map<String, dynamic>> socHistory; // For the sparkline
   final List<Map<String, dynamic>> activeAlerts;
+  final List<Map<String, dynamic>> trips;
 
   const VehicleDetailState({
     this.isLoading = false,
@@ -14,6 +15,7 @@ class VehicleDetailState extends Equatable {
     this.readings = const [],
     this.socHistory = const [],
     this.activeAlerts = const [],
+    this.trips = const [],
   });
 
   VehicleDetailState copyWith({
@@ -22,6 +24,7 @@ class VehicleDetailState extends Equatable {
     List<SignalReading>? readings,
     List<Map<String, dynamic>>? socHistory,
     List<Map<String, dynamic>>? activeAlerts,
+    List<Map<String, dynamic>>? trips,
   }) {
     return VehicleDetailState(
       isLoading: isLoading ?? this.isLoading,
@@ -29,9 +32,10 @@ class VehicleDetailState extends Equatable {
       readings: readings ?? this.readings,
       socHistory: socHistory ?? this.socHistory,
       activeAlerts: activeAlerts ?? this.activeAlerts,
+      trips: trips ?? this.trips,
     );
   }
 
   @override
-  List<Object?> get props => [isLoading, error, readings, socHistory, activeAlerts];
+  List<Object?> get props => [isLoading, error, readings, socHistory, activeAlerts, trips];
 }
