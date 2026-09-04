@@ -8,9 +8,10 @@ import '../widgets/filter_chips.dart';
 import '../widgets/status_chip.dart';
 
 class FleetHomeScreen extends StatefulWidget {
-  const FleetHomeScreen({Key? key}) : super(key: key);
+  const FleetHomeScreen({super.key});
 
   @override
+  // ignore: library_private_types_in_public_api
   _FleetHomeScreenState createState() => _FleetHomeScreenState();
 }
 
@@ -48,10 +49,13 @@ class _FleetHomeScreenState extends State<FleetHomeScreen> {
 
                 final filteredVehicles = state.currentFilter == FleetStatus.ALL
                     ? state.vehicles
-                    : state.vehicles.where((v) => v.status == state.currentFilter).toList();
+                    : state.vehicles
+                        .where((v) => v.status == state.currentFilter)
+                        .toList();
 
                 if (filteredVehicles.isEmpty) {
-                  return const Center(child: Text('No vehicles found for this status.'));
+                  return const Center(
+                      child: Text('No vehicles found for this status.'));
                 }
 
                 return ListView.builder(
@@ -73,7 +77,7 @@ class _FleetHomeScreenState extends State<FleetHomeScreen> {
 class _VehicleListItem extends StatelessWidget {
   final VehicleStatus vehicle;
 
-  const _VehicleListItem({Key? key, required this.vehicle}) : super(key: key);
+  const _VehicleListItem({required this.vehicle});
 
   @override
   Widget build(BuildContext context) {
@@ -85,11 +89,13 @@ class _VehicleListItem extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 4),
-            Text('SOC: ${vehicle.soc?.toStringAsFixed(1) ?? '--'}% | Range: ${vehicle.range?.toStringAsFixed(0) ?? '--'} km'),
+            Text(
+                'SOC: ${vehicle.soc?.toStringAsFixed(1) ?? '--'}% | Range: ${vehicle.range?.toStringAsFixed(0) ?? '--'} km'),
             if (vehicle.activeAlerts > 0)
               Text(
                 '${vehicle.activeAlerts} Active Alerts',
-                style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                    color: Colors.red, fontWeight: FontWeight.bold),
               ),
           ],
         ),

@@ -6,7 +6,7 @@ import 'ui/screens/fleet_home_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // Initialize Database
   final dbService = DatabaseService();
   await dbService.init();
@@ -17,7 +17,7 @@ void main() async {
 class MyApp extends StatelessWidget {
   final DatabaseService dbService;
 
-  const MyApp({Key? key, required this.dbService}) : super(key: key);
+  const MyApp({super.key, required this.dbService});
 
   @override
   Widget build(BuildContext context) {
@@ -30,11 +30,13 @@ class MyApp extends StatelessWidget {
       child: MaterialApp(
         title: 'Fleet Console',
         theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple, brightness: Brightness.light),
+          colorScheme: ColorScheme.fromSeed(
+              seedColor: Colors.deepPurple, brightness: Brightness.light),
           useMaterial3: true,
         ),
         darkTheme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple, brightness: Brightness.dark),
+          colorScheme: ColorScheme.fromSeed(
+              seedColor: Colors.deepPurple, brightness: Brightness.dark),
           useMaterial3: true,
         ),
         themeMode: ThemeMode.system,

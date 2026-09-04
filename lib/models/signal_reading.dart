@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
 
+// ignore: constant_identifier_names
 enum Verdict { NORMAL, ALERT, STALE, NONE }
 
 class SignalReading extends Equatable {

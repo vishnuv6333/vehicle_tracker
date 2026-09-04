@@ -4,7 +4,7 @@ import '../../models/vehicle_status.dart';
 class StatusChip extends StatelessWidget {
   final FleetStatus status;
 
-  const StatusChip({Key? key, required this.status}) : super(key: key);
+  const StatusChip({super.key, required this.status});
 
   @override
   Widget build(BuildContext context) {
