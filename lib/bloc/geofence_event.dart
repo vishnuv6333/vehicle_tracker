@@ -45,3 +45,6 @@ class EditGeofence extends GeofenceEvent {
   @override
   List<Object?> get props => [id, name, lat, lng, radius];
 }
+
+class AddDemoGeofenceWithTrips extends GeofenceEvent {}
+

@@ -12,13 +12,14 @@ class FleetBloc extends Bloc<FleetEvent, FleetState> {
     on<FilterChanged>(_onFilterChanged);
   }
 
-  Future<void> _onLoadFleetData(LoadFleetData event, Emitter<FleetState> emit) async {
+  Future<void> _onLoadFleetData(
+      LoadFleetData event, Emitter<FleetState> emit) async {
     emit(state.copyWith(isLoading: true));
     try {
       final connection = _dbService.connection;
-      
+
       final stopwatch = Stopwatch()..start();
-      
+
       // Query to get all vehicles
       final result = await connection.query('SELECT * FROM fleet_status_view');
       final vehicles = <VehicleStatus>[];
@@ -37,7 +38,7 @@ class FleetBloc extends Bloc<FleetEvent, FleetState> {
         FROM fleet_status_view 
         GROUP BY status
       ''');
-      
+
       stopwatch.stop();
       print('Fleet data query took: ${stopwatch.elapsedMilliseconds} ms');
 
@@ -46,14 +47,23 @@ class FleetBloc extends Bloc<FleetEvent, FleetState> {
       for (var row in countRows) {
         final statusStr = row[0] as String;
         final count = row[1] as int;
-        
+
         FleetStatus status;
         switch (statusStr) {
-          case 'OFFLINE': status = FleetStatus.OFFLINE; break;
-          case 'MOVING': status = FleetStatus.MOVING; break;
-          case 'IDLE': status = FleetStatus.IDLE; break;
-          case 'STOPPED': status = FleetStatus.STOPPED; break;
-          default: status = FleetStatus.OFFLINE;
+          case 'OFFLINE':
+            status = FleetStatus.OFFLINE;
+            break;
+          case 'MOVING':
+            status = FleetStatus.MOVING;
+            break;
+          case 'IDLE':
+            status = FleetStatus.IDLE;
+            break;
+          case 'STOPPED':
+            status = FleetStatus.STOPPED;
+            break;
+          default:
+            status = FleetStatus.OFFLINE;
         }
         counts[status] = count;
       }

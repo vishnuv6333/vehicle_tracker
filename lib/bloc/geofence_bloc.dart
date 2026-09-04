@@ -16,6 +16,7 @@ class GeofenceBloc extends Bloc<GeofenceEvent, GeofenceState> {
     on<ToggleGeofence>(_onToggleGeofence);
     on<RecalculateAllTrips>(_onRecalculateAllTrips);
     on<EditGeofence>(_onEditGeofence);
+    on<AddDemoGeofenceWithTrips>(_onAddDemoGeofenceWithTrips);
   }
 
   Future<void> _onLoadGeofences(
@@ -24,9 +25,21 @@ class GeofenceBloc extends Bloc<GeofenceEvent, GeofenceState> {
     try {
       final connection = _dbService.connection;
 
-      final result = await connection.query('SELECT * FROM geofences');
+      var result = await connection.query('SELECT * FROM geofences');
+      var rows = result.fetchAll();
+
+      if (rows.isEmpty) {
+        await connection.query('''
+          INSERT INTO geofences (id, name, lat, lng, radius, active) VALUES
+          ('gf_hq_1', 'Headquarters', 12.9716, 77.5946, 500.0, true),
+          ('gf_wh_1', 'Warehouse A', 13.0000, 77.6000, 300.0, true),
+          ('gf_md_1', 'Maintenance Depot', 12.9500, 77.5800, 200.0, false)
+        ''');
+        result = await connection.query('SELECT * FROM geofences');
+        rows = result.fetchAll();
+      }
+
       final geofences = <Geofence>[];
-      final rows = result.fetchAll();
       for (var row in rows) {
         geofences.add(Geofence(
           id: row[0] as String,
@@ -58,12 +71,6 @@ class GeofenceBloc extends Bloc<GeofenceEvent, GeofenceState> {
       }
 
       // Also account for vehicles that started inside a geofence and never left
-      // (Their latest trip might not exist, or their ONLY trip is IN_PROGRESS but they haven't left... wait, if they haven't left, they don't have a trip.
-      // If we strictly rely on trips, vehicles that never left their origin geofence wouldn't be counted if they have 0 trips.
-      // But for this assignment's scope, counting based on latest trip is sufficient.
-      // Let's refine it to include vehicles with no trips but their initial telemetry was in a geofence.
-      // Actually, if we just want a simple live count, let's just do it in Dart using the latest telemetry!
-
       final latestLocQuery = await connection.query('''
         SELECT vehicle_id, 
           MAX(CASE WHEN signal_name = 'lat' THEN signal_value END) as lat,
@@ -153,6 +160,68 @@ class GeofenceBloc extends Bloc<GeofenceEvent, GeofenceState> {
       add(LoadGeofences());
     } catch (e) {
       print(e);
+    }
+  }
+
+  Future<void> _onAddDemoGeofenceWithTrips(
+      AddDemoGeofenceWithTrips event, Emitter<GeofenceState> emit) async {
+    emit(state.copyWith(isLoading: true));
+    try {
+      final connection = _dbService.connection;
+
+      final hqId = 'gf_hq_1';
+      final whId = 'gf_wh_1';
+      final testHubId = 'gf_test_hub_${DateTime.now().millisecondsSinceEpoch}';
+
+      await connection.query('''
+        INSERT INTO geofences (id, name, lat, lng, radius, active) VALUES
+        ('$hqId', 'Headquarters', 12.9716, 77.5946, 500.0, true),
+        ('$whId', 'Warehouse A', 13.0000, 77.6000, 300.0, true),
+        ('$testHubId', 'Demo Logistics Hub', 12.9300, 77.5500, 450.0, true)
+        ON CONFLICT DO NOTHING
+      ''');
+
+      final vRes = await connection.query("SELECT id FROM vehicles LIMIT 1");
+      final vRows = vRes.fetchAll();
+      final targetVehicleId =
+          vRows.isNotEmpty ? (vRows.first[0] as String) : 'vh_0';
+
+      await connection.query('''
+        INSERT INTO vehicles (id, reg_number, model) VALUES
+        ('$targetVehicleId', 'DEMO-REG-001', 'Tata Ace EV')
+        ON CONFLICT DO NOTHING
+      ''');
+
+      final now = DateTime.now();
+      final t0 = now.subtract(const Duration(minutes: 40)).toIso8601String();
+      final t1 = now.subtract(const Duration(minutes: 30)).toIso8601String();
+      final t2 = now.subtract(const Duration(minutes: 20)).toIso8601String();
+      final t3 = now.subtract(const Duration(minutes: 10)).toIso8601String();
+      final t4 = now.subtract(const Duration(minutes: 2)).toIso8601String();
+
+      await connection.query('''
+        INSERT INTO telemetry (timestamp, vehicle_id, signal_name, signal_value, received_at) VALUES 
+        ('$t0', '$targetVehicleId', 'lat', 12.9716, '$t0'),
+        ('$t0', '$targetVehicleId', 'lng', 77.5946, '$t0'),
+
+        ('$t1', '$targetVehicleId', 'lat', 12.9850, '$t1'),
+        ('$t1', '$targetVehicleId', 'lng', 77.5970, '$t1'),
+
+        ('$t2', '$targetVehicleId', 'lat', 13.0000, '$t2'),
+        ('$t2', '$targetVehicleId', 'lng', 77.6000, '$t2'),
+
+        ('$t3', '$targetVehicleId', 'lat', 12.9600, '$t3'),
+        ('$t3', '$targetVehicleId', 'lng', 77.5800, '$t3'),
+
+        ('$t4', '$targetVehicleId', 'lat', 12.9300, '$t4'),
+        ('$t4', '$targetVehicleId', 'lng', 77.5500, '$t4');
+      ''');
+
+      await TripCalculator.processTelemetry(_dbService, targetVehicleId);
+
+      add(LoadGeofences());
+    } catch (e) {
+      emit(state.copyWith(isLoading: false, error: e.toString()));
     }
   }
 }

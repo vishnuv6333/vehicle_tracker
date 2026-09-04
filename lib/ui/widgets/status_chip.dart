@@ -10,42 +10,56 @@ class StatusChip extends StatelessWidget {
   Widget build(BuildContext context) {
     Color chipColor;
     String label;
+    IconData icon;
 
     switch (status) {
       case FleetStatus.MOVING:
-        chipColor = Colors.green;
+        chipColor = const Color(0xFF10B981); // Emerald Green
         label = 'MOVING';
+        icon = Icons.navigation_rounded;
         break;
       case FleetStatus.IDLE:
-        chipColor = Colors.orange;
+        chipColor = const Color(0xFFF59E0B); // Amber/Gold
         label = 'IDLE';
+        icon = Icons.access_time_filled_rounded;
         break;
       case FleetStatus.STOPPED:
-        chipColor = Colors.blue;
+        chipColor = const Color(0xFF3B82F6); // Royal Blue
         label = 'STOPPED';
+        icon = Icons.pause_circle_filled_rounded;
         break;
       case FleetStatus.OFFLINE:
       default:
-        chipColor = Colors.grey;
+        chipColor = const Color(0xFF64748B); // Slate Grey
         label = 'OFFLINE';
+        icon = Icons.wifi_off_rounded;
         break;
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: chipColor.withValues(alpha: 0.2),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: chipColor.withValues(alpha: 0.5)),
+        color: chipColor.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: chipColor.withValues(alpha: 0.3), width: 1),
       ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: chipColor,
-          fontSize: 12,
-          fontWeight: FontWeight.bold,
-        ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: chipColor),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              color: chipColor,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.5,
+            ),
+          ),
+        ],
       ),
     );
   }
 }
+

@@ -17,18 +17,18 @@ class GeofencesScreen extends StatelessWidget {
         appBar: AppBar(
           title: const Text('Geofences'),
           actions: [
-            // Builder(builder: (ctx) {
-            //   return IconButton(
-            //     icon: const Icon(Icons.calculate),
-            //     tooltip: 'Recalculate Trips',
-            //     onPressed: () {
-            //       ctx.read<GeofenceBloc>().add(RecalculateAllTrips());
-            //       ScaffoldMessenger.of(ctx).showSnackBar(
-            //         const SnackBar(content: Text('Recalculating trips...')),
-            //       );
-            //     },
-            //   );
-            // }),
+            Builder(builder: (ctx) {
+              return IconButton(
+                icon: const Icon(Icons.sync),
+                tooltip: 'Recalculate Trips',
+                onPressed: () {
+                  ctx.read<GeofenceBloc>().add(RecalculateAllTrips());
+                  ScaffoldMessenger.of(ctx).showSnackBar(
+                    const SnackBar(content: Text('Recalculating trips...')),
+                  );
+                },
+              );
+            }),
           ],
         ),
         body: BlocBuilder<GeofenceBloc, GeofenceState>(
