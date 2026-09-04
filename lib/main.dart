@@ -12,7 +12,7 @@ void main() async {
   // Initialize Database
   final dbService = DatabaseService();
   await dbService.init();
-  
+
   // Seed initial data
   await MockDataGenerator.seedMockData(dbService);
 
@@ -33,6 +33,7 @@ class MyApp extends StatelessWidget {
         ),
       ],
       child: MaterialApp(
+        debugShowCheckedModeBanner: false,
         title: 'Fleet Console',
         theme: ThemeData(
           colorScheme: ColorScheme.fromSeed(

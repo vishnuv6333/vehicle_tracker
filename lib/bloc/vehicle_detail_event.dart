@@ -14,3 +14,20 @@ class LoadVehicleDetail extends VehicleDetailEvent {
   @override
   List<Object?> get props => [vehicleId];
 }
+
+class DismissAlert extends VehicleDetailEvent {
+  final String alertId;
+  final String reason;
+  const DismissAlert(this.alertId, this.reason);
+
+  @override
+  List<Object?> get props => [alertId, reason];
+}
+
+class UndoDismissAlert extends VehicleDetailEvent {
+  final String alertId;
+  const UndoDismissAlert(this.alertId);
+
+  @override
+  List<Object?> get props => [alertId];
+}

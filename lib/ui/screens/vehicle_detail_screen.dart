@@ -33,6 +33,44 @@ class VehicleDetailScreen extends StatelessWidget {
 
             return CustomScrollView(
               slivers: [
+                if (state.activeAlerts.isNotEmpty)
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Active Alerts',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleLarge
+                                  ?.copyWith(color: Colors.red)),
+                          const SizedBox(height: 8),
+                          ...state.activeAlerts
+                              .where((a) => a['status'] == 'active')
+                              .map((alert) {
+                            return Card(
+                              color: Colors.red.shade50,
+                              child: ListTile(
+                                leading: Icon(Icons.warning,
+                                    color: alert['severity'] == 'Critical'
+                                        ? Colors.red
+                                        : Colors.orange),
+                                title: Text(
+                                    '${alert['alert_type'].toString().toUpperCase()} - ${alert['severity']}'),
+                                trailing: TextButton(
+                                  onPressed: () {
+                                    _showDismissalSheet(context, alert['id']);
+                                  },
+                                  child: const Text('DISMISS'),
+                                ),
+                              ),
+                            );
+                          }),
+                        ],
+                      ),
+                    ),
+                  ),
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.all(16.0),
@@ -105,6 +143,63 @@ class VehicleDetailScreen extends StatelessWidget {
                   )
               ],
             );
+          },
+        ),
+      ),
+    );
+  }
+
+  void _showDismissalSheet(BuildContext context, String alertId) {
+    final bloc = context.read<VehicleDetailBloc>();
+    showModalBottomSheet(
+      context: context,
+      builder: (_) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const ListTile(
+                  title: Text('Dismiss Reason',
+                      style: TextStyle(fontWeight: FontWeight.bold))),
+              ListTile(
+                title: const Text('I am on it'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _dismiss(context, bloc, alertId, 'I am on it');
+                },
+              ),
+              ListTile(
+                title: const Text('Wrong alert'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _dismiss(context, bloc, alertId, 'Wrong alert');
+                },
+              ),
+              ListTile(
+                title: const Text('Something else…'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _dismiss(context, bloc, alertId, 'Something else…');
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _dismiss(BuildContext context, VehicleDetailBloc bloc, String alertId,
+      String reason) {
+    bloc.add(DismissAlert(alertId, reason));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('Alert dismissed'),
+        duration: const Duration(seconds: 5),
+        action: SnackBarAction(
+          label: 'UNDO',
+          onPressed: () {
+            bloc.add(UndoDismissAlert(alertId));
           },
         ),
       ),
